@@ -1,0 +1,54 @@
+@startuml C4_JewelryStoreSystem
+!include https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_TOP_DOWN()
+
+title C4 Diagram: Jewelry Store System
+
+Person_Ext(customer, "Customer", "Внешний пользователь", "Description of external person")
+Person_Ext(seller, "Seller", "Менеджер по заказам", "Operates with order, confirms manufacturing for the user")
+Person_Ext(apiUser, "API user", "Внешний пользователь API", "Description of external person")
+Person(operator, "Operator", "Оператор производства", "Takes order in work, manufactures jewelry")
+
+System_Boundary(jewelrySystem, "Jewelry Store System [Software System]") {
+  
+  Container(internetShop, "Internet Shop", "Vue, TypeScript, Threejs", "User can make an order, upload 3D model, work in 3D editor")
+    
+  Container(shopApi, "Shop API", "SpringBoot", "Provide list of shop items, receive 3D files from user, save info about customer orders")
+
+  ContainerDb(shopDb, "Shop DB", "PostgreSQL", "Holds main information about customers, orders, shop items")
+
+  Container(crm, "CRM", "Vue, TypeScript", "Web client used by the Seller to manage orders")
+
+  Container(crmApi, "CRM API", "SpringBoot", "Handles CRM operations, communicates with storage, queue, and database")
+
+  Container(storage3D, "3D files storage", "S3-based storage", "Stores 3D files so that they can be processed or calculated")
+
+  Container(messagesQueue, "Messages Queue", "RabbitMQ", "Sends messages about new orders, status changes, etc. Has several topics")
+
+  Container(mesApi, "MES API", "C#", "Assigns orders to operators, shows list of orders, calculates the price")
+
+  Container(mes, "MES", "React, TypeScript", "UI for operators: provides interface to assign orders, shows list of orders")
+
+  ContainerDb(mesDb, "MES db", "PostgreSQL", "Holds information about orders, operator assignments, and statuses (MES perspective)")
+}
+
+' -----------------------------
+' Определяем связи (Rel) между элементами
+' -----------------------------
+
+Rel(customer, internetShop, "Makes an order, uploads 3D model")
+Rel(internetShop, shopApi, "Submits new orders, uploads 3D files", "HTTP/JSON")
+Rel(shopApi, shopDb, "Stores/retrieves order info", "JDBC")
+Rel(seller, crm, "Manages customer orders")
+Rel(crm, crmApi, "Uses", "HTTP/JSON")
+Rel(crmApi, shopDb, "CRUD on customer/order data", "JDBC")
+Rel(crmApi, storage3D, "Uploads/retrieves 3D files")
+Rel(crmApi, messagesQueue, "Sends order/status messages")
+Rel(apiUser, mesApi, "Uses MES API", "HTTP/JSON")
+Rel(mesApi, mesDb, "Stores/retrieves MES order data", "JDBC")
+Rel(operator, mes, "Uses MES UI to process orders")
+Rel(mes, mesApi, "Queries/updates order statuses", "HTTP/JSON")
+Rel(mesApi, storage3D, "Retrieves 3D files for price calc or manufacturing data")
+
+@enduml
