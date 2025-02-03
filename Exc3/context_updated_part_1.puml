@@ -1,0 +1,61 @@
+@startuml C4_JewelryStoreSystem_Tracing
+!include https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Container.puml
+
+' Определяем красный цвет для новых компонентов
+skinparam componentStyle rectangle
+skinparam rectangle {
+  BackgroundColor #FFEBEB
+  BorderColor red
+}
+
+LAYOUT_TOP_DOWN()
+title C4 Diagram with Tracing
+
+Person_Ext(customer, "Customer", "Внешний пользователь")
+Person_Ext(seller, "Seller", "Менеджер по заказам")
+Person_Ext(apiUser, "API user", "Внешний пользователь API")
+Person(operator, "Operator", "Оператор производства")
+
+System_Boundary(jewelrySystem, "Jewelry Store System [Software System]") {
+    Container(internetShop, "Internet Shop", "Vue, TS", "User can make an order")
+    Container(shopApi, "Shop API", "SpringBoot", "Handles customer orders, 3D files")
+    ContainerDb(shopDb, "Shop DB", "PostgreSQL", "Main info for shop")
+
+    Container(crm, "CRM", "Vue, TS", "Web client for sellers")
+    Container(crmApi, "CRM API", "SpringBoot", "Manages orders, statuses")
+    
+    Container(mes, "MES", "React, TS", "UI for operators")
+    Container(mesApi, "MES API", "C#", "Order assignment, price calc")
+    ContainerDb(mesDb, "MES DB", "PostgreSQL", "MES info")
+
+    Container(messagesQueue, "Messages Queue", "RabbitMQ", "Message broker")
+
+    Container(storage3D, "3D files storage", "S3-based", "Stores 3D files")
+
+    ' Новые компоненты, связанные с трейсингом, выделим красным
+    Container_Ext(tracingCollector, "Jaeger Collector", "OpenTelemetry/Jaeger", "Collects spans") #red
+    Container_Ext(tracingUI, "Jaeger UI", "Jaeger", "Interface to view traces") #red
+}
+
+' Связи (на примере основных)
+Rel(customer, internetShop, "Makes an order")
+Rel(internetShop, shopApi, "Calls API", "HTTP/JSON")
+Rel(shopApi, shopDb, "CRUD", "JDBC")
+Rel(seller, crm, "Manages orders")
+Rel(crm, crmApi, "Uses", "HTTP/JSON")
+Rel(crmApi, shopDb, "CRUD", "JDBC")
+Rel(crmApi, messagesQueue, "Sends status updates", "AMQP")
+Rel(apiUser, mesApi, "B2B orders", "HTTP/JSON")
+Rel(mesApi, mesDb, "CRUD", "JDBC")
+Rel(operator, mes, "Works with orders")
+Rel(mes, mesApi, "Calls MES API", "HTTP/JSON")
+Rel(mesApi, messagesQueue, "Sends messages", "AMQP")
+
+' Связь сервисов с новым Tracing Collector
+Rel(shopApi, tracingCollector, "Sends spans/traces", "OTLP/gRPC") #red
+Rel(crmApi, tracingCollector, "Sends spans/traces", "OTLP/gRPC") #red
+Rel(mesApi, tracingCollector, "Sends spans/traces", "OTLP/gRPC") #red
+
+Rel(tracingUI, tracingCollector, "Queries & shows traces") #red
+
+@enduml

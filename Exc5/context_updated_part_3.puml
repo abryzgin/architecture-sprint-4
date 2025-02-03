@@ -1,0 +1,30 @@
+@startuml
+
+title MES Caching (Cache-Aside) - Sequence Diagram
+
+actor Operator as OP
+participant "MES UI" as UI
+participant "MES API" as API
+participant "Cache Store (e.g. Redis)" as CACHE
+participant "MES DB" as DB
+
+== Чтение списка заказов ==
+OP -> UI: Открывает страницу заказов
+UI -> API: GET /orders?status=PRICE_CALCULATED
+API -> CACHE: Проверяем кеш по ключу: OrderList:PRICE_CALCULATED
+alt Нет данных (cache miss)
+    API -> DB: SELECT * FROM orders WHERE status=PRICE_CALCULATED
+    DB --> API: Возвращаем список заказов
+    API -> CACHE: Записать список в кеш (OrderList:PRICE_CALCULATED)
+end
+API --> UI: Возвращаем список заказов (JSON)
+
+== Обновление статуса ==
+OP -> UI: Нажимает "Начать производство"
+UI -> API: POST /orders/{orderId}/start
+API -> DB: UPDATE orders SET status=MANUFACTURING_STARTED...
+DB --> API: OK
+API -> CACHE: Инвалидируем ключ: OrderList:PRICE_CALCULATED
+API --> UI: {"result": "OK"}
+
+@enduml
